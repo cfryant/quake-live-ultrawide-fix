@@ -6,6 +6,9 @@ True 21:9 and 32:9 (anything wider than 16:9) for **Quake Live on Steam**, with 
 
 ## ⚠️ Read this first: VAC / anti-cheat warning
 
+> [!CAUTION]
+> ## ⛔ **Do not use for online play! It WILL trigger Valve's Anti-Cheat rendering your copy permanently unplayable!  For offline bots use ONLY!.**
+
 - **What this changes:** the installer makes a **separate copy** of your Quake Live install and modifies **one game file in that copy**: `cgamex86.dll` inside `baseq3\bin.pk3`. Exactly 4 bytes change. There is **no memory patching, no DLL injection and no background process**.
 - **Your original Steam install is never modified.** The script only reads it.
 - **Valve treats modified game files as cheating.** Quake Live uses Valve Anti-Cheat (VAC). Running the patched copy while Steam is **online**, or trying to join servers with it, **could get you a VAC ban**. A VAC ban is **permanent** for Quake Live, and Valve may extend it to other games on the same engine. It does **not** delete your Steam account.
