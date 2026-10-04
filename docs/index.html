@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quake Live Ultrawide Fix: true 21:9 / 32:9 without stretching</title>
+<meta name="description" content="Open-source PowerShell script that makes a separate offline copy of Quake Live (Steam) render ultrawide resolutions without horizontal stretching.">
+<style>
+  :root { --fg:#1d1f23; --muted:#555; --bg:#fff; --card:#f6f7f9; --warn:#fff4e5; --warnb:#e8a33d; --accent:#b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e6e6e6; --muted:#aaa; --bg:#15171a; --card:#1f2226; --warn:#3a2c12; --warnb:#e8a33d; --accent:#ff6b5f; } }
+  body { font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: var(--fg); background: var(--bg); margin: 0; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 18px 60px; }
+  h1 { font-size: 2rem; margin: .2em 0; } h2 { margin-top: 2em; border-bottom: 1px solid #8884; padding-bottom: .2em; }
+  .warn { background: var(--warn); border-left: 6px solid var(--warnb); padding: 14px 18px; border-radius: 6px; }
+  .warn h2 { margin-top: 0; border: 0; }
+  code, pre { font-family: ui-monospace, Consolas, monospace; font-size: .92em; }
+  pre { background: var(--card); padding: 12px; border-radius: 6px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .9em; display: block; overflow-x: auto; }
+  th, td { border: 1px solid #8885; padding: 6px 8px; text-align: left; white-space: nowrap; }
+  th { background: var(--card); }
+  .muted { color: var(--muted); } figure { margin: 1em 0; } figcaption { color: var(--muted); font-size: .9em; }
+  svg text { fill: var(--fg); font: 13px system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<main>
+<h1>Quake Live Ultrawide Fix</h1>
+<p class="muted">True 21:9 and 32:9 (anything wider than 16:9) for Quake Live on Steam, with no horizontal stretching, applied to a <strong>separate offline copy</strong> of the game.</p>
+
+<section class="warn">
+<h2>⚠️ VAC / anti-cheat warning: read this first</h2>
+<ul>
+  <li><strong>What it changes:</strong> the installer makes a separate copy of your Quake Live install and modifies one game file in that copy: <code>cgamex86.dll</code> inside <code>baseq3\bin.pk3</code> (4 bytes). <strong>No memory patching, no DLL injection, no background process.</strong></li>
+  <li><strong>Your original Steam install is never modified.</strong></li>
+  <li><strong>Valve treats modified game files as cheating.</strong> Running the patched copy while Steam is online, or joining servers with it, <strong>could get you a VAC ban</strong>. A ban is permanent for Quake Live (and possibly other games on the same engine), but it does not delete your Steam account. Pure online servers should refuse the modified copy anyway.</li>
+  <li><strong>Offline/local play only, with Steam in Offline Mode.</strong> Use at your own risk; no warranty.</li>
+</ul>
+</section>
+
+<h2>The problem</h2>
+<p>Quake Live only widens its horizontal field of view up to 16:9. At wider resolutions it renders a 16:9 view and stretches it sideways. At 3440×1440 everything is about 1.34× too wide; at 32:9, 2×. <code>r_mode -1</code> with <code>r_customWidth/Height</code> gives native resolution but the image is still stretched.</p>
+
+<h2>Why there's no cvar fix</h2>
+<ul>
+  <li>The game logic fixes the vertical FOV from <code>cg_fov</code> on a 640×480 (4:3) basis, then derives the horizontal FOV from the integer preset <code>r_aspectRatio</code>: 0 = 4:3, 1 = 16:9, 2 = 16:10, anything else = 5:4.</li>
+  <li>The engine resets <code>r_aspectRatio</code> on every video restart (1 for anything 16:9 or wider), so console or config values don't last.</li>
+  <li>There's no <code>r_customPixelAspect</code> or similar cvar, and <code>cg_fov</code> changes zoom, not aspect ratio. Flawless Widescreen has no Quake Live plugin.</li>
+</ul>
+
+<h2>How the fix works</h2>
+<p>The 16:9 preset computes <code>fov_x = 2·atan(tan(fov_y/2) · 16/9)</code>. The <code>9.0</code> is stored once in <code>cgamex86.dll</code> (offset <code>0x7246C</code>). The installer replaces it with <code>16·Height/Width</code> (3440×1440 → 6.6977, 5120×1440 → 4.5). The engine already picks that preset for ultrawide modes, so you get correct Hor+ with no cvar changes.</p>
+<figure>
+<svg viewBox="0 0 720 230" width="100%" role="img" aria-label="Schematic: stock Quake Live stretches a 16:9 view to 21:9, the patched copy shows more at the sides without stretching">
+  <rect x="10" y="20" width="200" height="84" fill="none" stroke="currentColor" stroke-width="2"/>
+  <circle cx="110" cy="62" r="24" fill="none" stroke="currentColor" stroke-width="2"/>
+  <text x="10" y="14">16:9 view the game renders</text>
+  <rect x="240" y="20" width="470" height="84" fill="none" stroke="#b3261e" stroke-width="2"/>
+  <ellipse cx="475" cy="62" rx="32" ry="24" fill="none" stroke="#b3261e" stroke-width="2"/>
+  <text x="240" y="14">Stock Quake Live on 21:9: stretched (circles become ovals)</text>
+  <rect x="240" y="138" width="470" height="84" fill="none" stroke="#2e7d32" stroke-width="2"/>
+  <rect x="373" y="138" width="200" height="84" fill="none" stroke="#2e7d32" stroke-dasharray="5 4"/>
+  <circle cx="475" cy="180" r="24" fill="none" stroke="#2e7d32" stroke-width="2"/>
+  <text x="240" y="132">Patched copy on 21:9: same vertical view, more at the sides, no stretch</text>
+</svg>
+<figcaption>Schematic diagram only. No screenshots yet; I'd rather not fake any.</figcaption>
+</figure>
+
+<h2>Supported resolutions</h2>
+<p>Any resolution wider than 16:9. Horizontal FOV is shown for <code>cg_fov 100</code>; stock 16:9 is about 115.7°.</p>
+<table>
+<tr><th>Resolution</th><th>Aspect</th><th>16·H/W</th><th>Bytes @ 0x7246C</th><th>H-FOV @ cg_fov 100</th><th>Patched cgamex86.dll SHA-256</th></tr>
+<tr><td>2560×1080</td><td>≈2.37</td><td>6.7500</td><td><code>00 00 D8 40</code></td><td>129.5°</td><td><code>fcb02358b0b245ff8e3acb780ff1ca4f5384e8c455b25d003268b560c1bf6039</code></td></tr>
+<tr><td>3440×1440</td><td>≈2.39</td><td>6.6977</td><td><code>59 53 D6 40</code></td><td>129.8°</td><td><code>d5e1f9edf61a32b4f22c2c95b1b16bec60f46323eecf93ae3e6ee818604eb034</code></td></tr>
+<tr><td>3840×1600</td><td>2.40</td><td>6.6667</td><td><code>55 55 D5 40</code></td><td>130.0°</td><td><code>1ece70c7f9d0cfc6c9688aee65757807b7fe095e5cd6a7afc5a8571a3dc371d4</code></td></tr>
+<tr><td>5120×2160</td><td>≈2.37</td><td>6.7500</td><td><code>00 00 D8 40</code></td><td>129.5°</td><td><code>fcb02358b0b245ff8e3acb780ff1ca4f5384e8c455b25d003268b560c1bf6039</code></td></tr>
+<tr><td>3840×1080</td><td>32:9</td><td>4.5000</td><td><code>00 00 90 40</code></td><td>145.1°</td><td><code>3020401a4192b87b4ae939153e6bacb212088d49177d8a297250dcd24cb7d82e</code></td></tr>
+<tr><td>5120×1440</td><td>32:9</td><td>4.5000</td><td><code>00 00 90 40</code></td><td>145.1°</td><td><code>3020401a4192b87b4ae939153e6bacb212088d49177d8a297250dcd24cb7d82e</code></td></tr>
+<tr><td>5760×1080</td><td>16:3</td><td>3.0000</td><td><code>00 00 40 40</code></td><td>156.3°</td><td><code>a888d98d895b69b7a0cdfe66c3d0f3775b541fa52599d2e848cac49785d4583e</code></td></tr>
+</table>
+<p><strong>Supported game build:</strong> original <code>cgamex86.dll</code> SHA-256 <code>310542161ae03cc09a2edf7c5933a3cb5e2f13d791f59d5a33a62721bbf39953</code> with <code>00 00 10 41</code> at <code>0x7246C</code> (Steam build 1168251). Anything else is refused.</p>
+
+<h2>Requirements</h2>
+<p>Windows 10/11 with Windows PowerShell 5.1 (built in) or PowerShell 7+. No third-party tools. Quake Live from Steam (app 282440), about 1.1 GB free, and a resolution wider than 16:9.</p>
+
+<h2>Install</h2>
+<ol>
+  <li>Download the release zip from the repository's <em>Releases</em> page and extract it. Close Quake Live.</li>
+  <li>Dry run (checks everything, writes nothing):
+<pre>powershell -ExecutionPolicy Bypass -File .\Install-UltrawideFix.ps1 -Destination 'D:\Games\QuakeLive-Ultrawide' -WhatIf</pre></li>
+  <li>Install:
+<pre>powershell -ExecutionPolicy Bypass -File .\Install-UltrawideFix.ps1 -Destination 'D:\Games\QuakeLive-Ultrawide'</pre>
+  Optional: <code>-Width 3440 -Height 1440</code>, <code>-SourcePath</code>, <code>-NoShortcut</code>, <code>-Force</code>. The destination must be outside every Steam library.</li>
+</ol>
+<p>The installer verifies the original file, copies the install, patches the copy's <code>bin.pk3</code>, deletes stale unpacked <code>cgamex86.dll</code> files in the copy's <code>&lt;steamid&gt;\baseq3</code> folders, writes a managed <code>autoexec.cfg</code> block, and creates the shortcut <strong>“Quake Live (Ultrawide, Offline)”</strong>.</p>
+
+<h2>Test</h2>
+<ol>
+  <li>Steam menu → <em>Go Offline…</em> → <em>Restart in Offline Mode</em>.</li>
+  <li>Launch “Quake Live (Ultrawide, Offline)”. Play → Start a Match → Offline, or <code>/map campgrounds ffa</code> then <code>/addbot keel 3</code>.</li>
+  <li>Round objects should look round; you should see more at the sides; the picture fills the screen at native resolution.</li>
+</ol>
+
+<h2>Uninstall</h2>
+<pre>powershell -ExecutionPolicy Bypass -File .\Uninstall-UltrawideFix.ps1 -Destination 'D:\Games\QuakeLive-Ultrawide'</pre>
+<p>Asks for confirmation, removes the copy and its shortcut. It only removes folders created by the installer and never touches the Steam install.</p>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Only the 3D view is fixed. Menus (4:3 canvas) stay stretched, and some HUD elements may too.</li>
+  <li>32:9 and wider gives a very wide FOV; lower <code>cg_fov</code> if needed.</li>
+  <li>Steam updates don't touch the copy. If a game update changes <code>cgamex86.dll</code>, the installer refuses that version.</li>
+</ul>
+
+<p class="muted">No game files are included in this project. MIT License © 2026 Christopher Fryant. Unofficial; not affiliated with id Software, Bethesda or Valve.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Game files are NEVER part of this repository. The scripts patch a local copy
+# of your own Quake Live install; nothing from the game is redistributed here.
+*.pk3
+*.dll
+*.exe
+*.so
+*.pak
+# Local test artifacts
+*.zip
+dist/
